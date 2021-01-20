@@ -212,7 +212,11 @@ class mapyllary:
                 cv2.waitKey(0)
                 cv2.destroyAllWindows()              
 
-        self.db = pd.DataFrame(db_dict).T
+        if self.db is None:
+            self.db = pd.DataFrame(db_dict).T
+        else:
+            self.db = pd.concat([self.db, pd.DataFrame(db_dict).T], 
+                                sort=False)
 
     def add_info(self, dict_list=None, input_json=None):
         input_json = self.get_last_json_if_undefined(input_json)
@@ -226,7 +230,9 @@ class mapyllary:
                 dict_cnt += 1
 
     def store_info(self):
-        self.db.to_csv(os.path.join(self.resources_path, 'db.csv'))
+        store_path = os.path.join(self.resources_path, 'db.csv')
+        logger.info('Storing metadata at %s' % store_path)
+        self.db.to_csv(store_path)
 
     def search_seg(self, input_json=None, **kwargs):
         '''
