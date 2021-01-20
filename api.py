@@ -2,9 +2,13 @@ import requests
 import numpy as np
 import cv2, imutils
 import os
-
+from bs4 import BeautifulSoup 
+import overpy
 import logging
+import urllib
 from colorlog import ColoredFormatter
+import pandas as pd
+op = overpy.Overpass()
 
 # Pre-defined colors for segmentation
 COLOR_CYCLE = [(230, 25, 75), (60, 180, 75), (255, 225, 25), (0, 130, 200), 
@@ -35,9 +39,56 @@ logger = logging.getLogger('log')
 logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
+class overpass:
+    def __init__(self):
+        pass
+    def area_id_by_name(self, area_name):
+        # helper function to get area id for overpass 
+        url = "https://www.openstreetmap.org/geocoder/search_osm_nominatim?query=" + urllib.parse.quote(area_name)
+        r = requests.get(url) 
+        soup = BeautifulSoup(r.content, 'html5lib')
+        osm_link = soup.find('a', attrs={'class':'set_position'})
+        relation_id = osm_link.get('data-id').strip()
+        logger.info("Relation ID retrieved for "
+                    "{area} is {r_id}".format(
+                    area=area_name, r_id=relation_id))
+        # 3600000000 + osm relation id is the overpass area id
+        return int(relation_id) + 3600000000
+
+    def find_features_in_area(self, feature_type, feature_key, area):
+        query = '''
+[out:json][timeout:25];
+area({area_id})->.searchArea;
+(
+  node["{feature_type}"="{feature_key}"](area.searchArea);
+  way["{feature_type}"="{feature_key}"](area.searchArea);
+  relation["{feature_type}"="{feature_key}"](area.searchArea);
+);
+out body;
+>;
+out skel qt;
+'''
+        if not isinstance(area, int):
+            area = self.area_id_by_name(area)
+        query = query.format(feature_type=feature_type, feature_key=feature_key,
+                             area_id=area)
+        return op.query(query)
+
+    def node_to_pos(self, node_list):
+        return zip([n.lon for n in node_list], [n.lat for n in node_list])
+
+    def find_ways_by_coord(self, coords, around=3):
+        query = ("way(around:{around}"
+                ",{lat}"
+                ",{long}"
+                ");out;")
+        query = query.format(around=around, long=coords[0], lat=coords[1])
+        ret = op.query(query).get_ways()
+        return [way.tags for way in ret]
+
 # main class for URL query to mapillary
 class mapyllary:
-    def __init__(self, cmd=False):
+    def __init__(self):
         self.client_id = ''
         self.uuid = ''
         # setup some constant URLs
@@ -55,22 +106,28 @@ class mapyllary:
         if not os.path.exists(self.resources_path):
             os.mkdir(self.resources_path)
 
+        # setup pandas for db
+        self.db = None
+
     def set_clinet_id(self, client_id):
         '''
             client ID should be obtained from Mapillary to use any query function
         '''
         self.client_id = client_id
 
+    def get_last_json_if_undefined(self, input_json):
+        if input_json is None:
+            return self.last_ret
+
     def clean_values(self, kwargs):
         # utility function for input data type tolerance
+        for k, v in kwargs.items():
+            if isinstance(v, list) or isinstance(v, tuple):
+                kwargs[k] = ','.join([str(e) for e in v])
         if 'closeto' in kwargs:
-            if isinstance(kwargs['closeto'], list) or isinstance(kwargs['closeto'], tuple):
-                kwargs['closeto'] = kwargs['closeto'][0] + ',' + kwargs['closeto'][1]
             if isinstance(kwargs['closeto'], dict):
                 kwargs['closeto'] = kwargs['closeto']['long'] + ',' + kwargs['closeto']['lat']      
-        if 'values' in kwargs:
-            if isinstance(kwargs['values'], list) or isinstance(kwargs['values'], tuple):
-                kwargs['values'] = ','.join(kwargs['values'])
+
        
         return kwargs
 
@@ -124,11 +181,13 @@ class mapyllary:
             Download images from Mapillary server. If input_json is not used, then the last query return is used.
             The downloaded images are in the "resources" directory
         '''
-        if input_json is None:
-            input_json = self.last_ret
+        input_json = self.get_last_json_if_undefined(input_json)
+        db_dict = dict()
         for f in input_json['features']:
             key = f['properties']['key']
-
+            db_dict[key] = dict(f['properties'])
+            db_dict[key]['lon'] = f['geometry']['coordinates'][0]
+            db_dict[key]['lat'] = f['geometry']['coordinates'][1]
             if res is None:
                 res = 320
             if res not in [320, 640, 1024, 2048]:
@@ -140,6 +199,7 @@ class mapyllary:
             if not os.path.exists(des_dir):
                 os.mkdir(des_dir)
             des = '{}/orig.jpg'.format(des_dir)
+            db_dict[key]['image_path'] = os.path.realpath(des)
             with open(des, 'wb') as handle:
                 response = requests.get(pic_url, stream=True)
                 if not response.ok:
@@ -152,13 +212,27 @@ class mapyllary:
                 cv2.waitKey(0)
                 cv2.destroyAllWindows()              
 
+        self.db = pd.DataFrame(db_dict).T
+
+    def add_info(self, dict_list=None, input_json=None):
+        input_json = self.get_last_json_if_undefined(input_json)
+        image_keys = [f['properties']['key'] for f in input_json['features']]
+        if dict_list is not None:
+            dict_cnt = 0
+            for d in dict_list:
+                d = {k + '_' + str(dict_cnt): v for k, v in d.items()}
+                for k, v in d.items():
+                    self.db.loc[self.db.index.isin(image_keys), k] = v
+                dict_cnt += 1
+
+    def store_info(self):
+        self.db.to_csv(os.path.join(self.resources_path, 'db.csv'))
 
     def search_seg(self, input_json=None, **kwargs):
         '''
             Request the segmentation data, then directly print them on the image.
         '''
-        if input_json is None:
-            input_json = self.last_ret
+        input_json = self.get_last_json_if_undefined(input_json)
         allowed_kwarg = ['bbox', 'closeto', 'max_score', 
                          'min_score', 'organization_keys', 'per_page', 
                          'private', 'radius', 'tile', 'userkeys', 
@@ -166,30 +240,35 @@ class mapyllary:
         forbidden = [k for k in kwargs if k not in allowed_kwarg]
         if forbidden:
             raise ValueError(forbidden + ' is not allowed in a segmentation query.')
-
+        
+        image_keys = [f['properties']['key'] for f in input_json['features']]
+        kwargs['image_keys'] = image_keys
         kwargs = self.clean_values(kwargs)
-        value_dict = dict()
-        ft_cnt = 0
-        for f in input_json['features']:
-            image_key = f['properties']['key']
-            kwargs['image_keys'] = image_key
-            url = self.SEG_SEARCH_URL
-            url += 'client_id=' + self.client_id
-            query_param = '&'.join([arg + '=' + str(value) for (arg, value) in kwargs.items()])
-            if query_param:
-                url += '&' + query_param
+        url = self.SEG_SEARCH_URL
+        url += 'client_id=' + self.client_id
+        query_param = '&'.join([arg + '=' + str(value) for (arg, value) in kwargs.items()])
+        if query_param:
+            url += '&' + query_param
 
-            logger.info('Sending Segmentation Request to Mapillary ...')
-            self.last_url = url
-            self.last_req = requests.get(url)
-            logger.info('Mapillary Returned with {}...'.format(str(self.last_req)))
-            self.last_ret = self.last_req.json()
+        logger.debug('Sending Segmentation Request to Mapillary ...')
+        self.last_url = url
+        self.last_req = requests.get(url)
+        logger.debug('Mapillary Returned with {}...'.format(str(self.last_req)))
+        self.last_ret = self.last_req.json()
+
+    def gen_seg_images(self, input_json=None):
+        input_json = self.get_last_json_if_undefined(input_json)
+        image_keys = [f['properties']['image_key'] for f in input_json['features']]
+        value_dict = dict()
+        for image_key in image_keys:
             img_dir = os.path.join(self.resources_path, image_key)
             img_path = '{}/orig.jpg'.format(img_dir)
             des_path = '{}/wseg.jpg'.format(img_dir)
             img = cv2.imread(img_path)
-
+            ft_cnt = 0
             for f_ret in self.last_ret['features']:
+                if not f_ret['properties']['image_key'] == image_key:
+                    continue
                 polygon_coords = []
                 value = f_ret['properties']['value']
                 if value not in value_dict:
@@ -214,8 +293,7 @@ class mapyllary:
             COLORS = np.random.randint(0, 255, size=(len(CLASSES) - 1, 3),
                 dtype="uint8")
             COLORS = np.vstack([[0, 0, 0], COLORS]).astype("uint8")
-        if input_json is None:
-            input_json = self.last_ret
+        input_json = self.get_last_json_if_undefined(input_json)
 
         net = cv2.dnn.readNetFromTorch(model)
         value_dict = dict()
