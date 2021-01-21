@@ -1,6 +1,6 @@
 # mapyllary
-Unofficial API to request image and segmentation from Mapillary 
-This package is hosted at https://pypi.org/project/mapyllary/
+Unofficial API to request image and segmentation from Mapillary.   
+This package is hosted at https://pypi.org/project/mapyllary/  
 Note: The OSM-related functionality of this package is imported from `overpass`
 https://github.com/mvexel/overpass-api-python-wrapper
 
