@@ -31,23 +31,29 @@ if __name__ == '__main__':
     op = api.overpass()
     if args['position'] is not None:
         pos = [args['position']]
+        p_total = 1
     elif args['name'] is not None:
         features = op.find_features_in_area(args['name'][0], args['name'][1], args['name'][2])
         pos = op.node_to_pos(features.get_nodes())
+        p_total = len(features.get_nodes())
     else:
         logger.critical("Either position or name must be defined.")
         raise ValueError
+    p_cnt = 0
+
     for p in pos:
+        logger.info("Processing {p_cnt} out of {p_total}".format(p_cnt=p_cnt, p_total=p_total))
         logger.info("Processing position lat: {lat}, long: {long}".format(lat=p[0], long=p[1]))
         mp.set_clinet_id(args['client_id'])
         
-        mp.search_images(closeto=p, radius=50, unique_users=True)
+        ret_json = mp.search_images(closeto=p, radius=50, unique_users=True)
         mp.download_images(res=2048)
         ways = op.find_ways_by_coord(p, around=10)
         isHwy = 'hgv:national_network'
         ways = [w for w in ways if isHwy in w and w[isHwy] == 'yes']
-        mp.add_info()
+        mp.add_info(ways)
         mp.store_info()
+
         if args['segmentation'] is not None:
             mp.search_seg(values=args['segmentation'])
             mp.gen_seg_images()
@@ -57,3 +63,4 @@ if __name__ == '__main__':
                            colors=args['colors'],
                            width=args['width'],
                            height=args['height'])
+        p_cnt += 1

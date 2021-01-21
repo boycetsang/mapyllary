@@ -173,7 +173,7 @@ class mapyllary:
                     new_list.append(f)
                     user_list.append(prop['user_key'])
             self.last_ret['features'] = new_list
-        logger.info('Returned {} features'.format(len(self.last_ret['features'])))
+        logger.debug('Returned {} features'.format(len(self.last_ret['features'])))
         return self.last_ret
 
     def download_images(self, input_json=None, res=None, show=False):
@@ -224,16 +224,17 @@ class mapyllary:
         if dict_list is not None:
             dict_cnt = 0
             for d in dict_list:
-
                 d = {k + '_' + str(dict_cnt): v for k, v in d.items()}
-                print(d)
+                logger.debug("Appended info with dict %s" % d)
                 for k, v in d.items():
                     self.db.loc[self.db.index.isin(image_keys), k] = v
                 dict_cnt += 1
 
     def store_info(self):
-        store_path = os.path.join(self.resources_path, 'db.csv')
-        logger.info('Storing metadata at %s' % store_path)
+        if not os.path.exists(os.path.join(self.resources_path, 'metadata')):
+            os.mkdir(os.path.join(self.resources_path, 'metadata'))
+        store_path = os.path.join(self.resources_path, 'metadata/db.csv')
+        logger.debug('Storing metadata at %s' % store_path)
         self.db.to_csv(store_path)
 
     def search_seg(self, input_json=None, **kwargs):
@@ -307,7 +308,7 @@ class mapyllary:
         value_dict = dict()
         ft_cnt = 0
         for f in input_json['features']:
-            image_key = f['properties']['key']
+            image_key = f['properties']['image_key']
             img_dir = os.path.join(self.resources_path, image_key)
             img_path = '{}/orig.jpg'.format(img_dir)
             des_path = '{}/wmodel.jpg'.format(img_dir)
