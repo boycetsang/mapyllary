@@ -4,14 +4,14 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="mapyllary", # Replace with your own username
-    version="0.0.2",
+    version="0.0.3",
     author="Boyce Tsang",
     author_email="boyce.tsang@gmail.com",
     description="Unofficial Mapillary API",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/boycetsang/mapyllary/blob/main/README.md",
-    packages=setuptools.find_packages(include=['api']),
+    packages=setuptools.find_packages(include=['mapyllary']),
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

@@ -1,4 +1,4 @@
-import api
+import mapyllary.api as api
 import argparse
 
 if __name__ == '__main__':
@@ -43,7 +43,10 @@ if __name__ == '__main__':
         
         mp.search_images(closeto=p, radius=50, unique_users=True)
         mp.download_images(res=2048)
-        mp.add_info(op.find_ways_by_coord(p))
+        ways = op.find_ways_by_coord(p, around=10)
+        isHwy = 'hgv:national_network_0'
+        ways = [w for w in ways if isHwy in w and w[isHwy] == 'yes']
+        mp.add_info()
         mp.store_info()
         if args['segmentation'] is not None:
             mp.search_seg(values=args['segmentation'])

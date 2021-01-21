@@ -224,7 +224,9 @@ class mapyllary:
         if dict_list is not None:
             dict_cnt = 0
             for d in dict_list:
+
                 d = {k + '_' + str(dict_cnt): v for k, v in d.items()}
+                print(d)
                 for k, v in d.items():
                     self.db.loc[self.db.index.isin(image_keys), k] = v
                 dict_cnt += 1

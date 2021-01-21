@@ -1,0 +1,9 @@
+README.md
+setup.py
+mapyllary/__init__.py
+mapyllary/api.py
+mapyllary.egg-info/PKG-INFO
+mapyllary.egg-info/SOURCES.txt
+mapyllary.egg-info/dependency_links.txt
+mapyllary.egg-info/requires.txt
+mapyllary.egg-info/top_level.txt
