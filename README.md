@@ -25,6 +25,7 @@ You can run the `main.py` as a command line tool to download images from Mapilla
 3.  Download images from a filter (OSM style; e.g. all the highway nodes that are motorway_junction within Washington state): `python main.py -c <your_client_id> -n highway motorway_junction Seattle`
 4.  Bonus: Applying a segmentation model to downloaded images
 `python main.py -c "dURwZ0J4TE1kaVZKd1lQbkhmaHNqajozMzgxNjFkNDBmMjk0ZWFk" -n highway motorway_junction "North Plains" -m model/enet-model.net -l model/enet-label.txt -w 1024 -t 512`
+5.  All the resultant image files are located at "resources" directory under current directory.
 
 
 ## Using the API
