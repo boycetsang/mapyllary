@@ -44,7 +44,7 @@ if __name__ == '__main__':
         mp.search_images(closeto=p, radius=50, unique_users=True)
         mp.download_images(res=2048)
         ways = op.find_ways_by_coord(p, around=10)
-        isHwy = 'hgv:national_network_0'
+        isHwy = 'hgv:national_network'
         ways = [w for w in ways if isHwy in w and w[isHwy] == 'yes']
         mp.add_info()
         mp.store_info()
