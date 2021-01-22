@@ -27,9 +27,13 @@ You can run the `main.py` as a command line tool to download images from Mapilla
 `python main.py -c <your_client_id> -n highway motorway_junction "North Plains" -m model/enet-model.net -l model/enet-label.txt -w 1024 -t 512`
 5.  All the resultant image files are located at "resources" directory under current directory.
 
+#### Comparison between original image, Mapillary segmentation data and a LaneNet Model
+![](https://raw.githubusercontent.com/boycetsang/mapyllary/main/docs/Mapillary.PNG)
 
 ## Using the API
 Here is a colab notebook that illustrate how the API can be used to request images and segmentation data from Mapillary.
 
 https://colab.research.google.com/drive/15V9A7Z7oiOoZlNB4_9upXnPauOxPvmif?usp=sharing
+
+
 
